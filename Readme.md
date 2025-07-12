@@ -10,5 +10,5 @@ community.
 
 **Team Name:** Team Neural Nets  
 **Team Members:**  
-- Sruti Shivaramakrishnan – [sruthi.s.inspire@gmail.com](mailto:sruthi.s.inspire@gmail.com)  
+- Sruthi Shivaramakrishnan – [sruthi.s.inspire@gmail.com](mailto:sruthi.s.inspire@gmail.com)  
 - Astik Jadhav – [astik.jadhav@hotmail.com](mailto:astik.jadhav@hotmail.com)

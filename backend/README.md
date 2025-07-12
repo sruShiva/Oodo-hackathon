@@ -30,7 +30,7 @@ A modern Q&A platform built with FastAPI, powered by Google Gemini AI for intell
   Tools for banning users, content moderation, sending messages, and generating reports.
 
 - **AI-Powered Answers**  
-  Instantly fetch AI-generated answers using Gemini 2.0 Flash Lite.
+  Instantly fetch AI-generated answers using Gemini 2.5 Flash Lite.
 
 ---
 
@@ -187,7 +187,7 @@ Interactive documentation is available:
 
 ### AI-Powered Answers
 
-- `POST /questions/answers_ai` – Get AI-generated answer using Gemini 2.0
+- `POST /questions/answers_ai` – Get AI-generated answer using Gemini 2.5
 
 ---
 

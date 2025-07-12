@@ -12,6 +12,15 @@ from app.auth import (
     delete_question_service
 )
 
+from app.models import AnswerCreate, AnswerUpdate, AnswerResponse, AnswerListResponse
+from app.auth import (
+    create_answer_service,
+    get_answers_service,
+    update_answer_service,
+    delete_answer_service,
+    accept_answer_service
+)
+
 router = APIRouter()
 
 # Authentication Routes
@@ -30,6 +39,7 @@ async def logout():
 @router.get("/users/profile", response_model=UserResponse)
 async def get_profile(current_user: dict = Depends(get_current_user)):
     return UserResponse(**current_user)
+
 
 # Question Management Routes
 @router.post("/questions", response_model=QuestionResponse)
@@ -73,3 +83,47 @@ async def delete_question(
 ):
     """Delete question (admin/owner permissions)"""
     return delete_question_service(question_id, current_user)
+
+
+# Answer Management Routes
+@router.post("/questions/{question_id}/answers", response_model=AnswerResponse)
+async def create_answer(
+    question_id: str,
+    answer: AnswerCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Post an answer to a specific question"""
+    return create_answer_service(question_id, answer, current_user)
+
+@router.get("/questions/{question_id}/answers", response_model=AnswerListResponse)
+async def get_answers(
+    question_id: str,
+    sort: str = "newest"  # newest, oldest, votes
+):
+    """Get all answers for a question"""
+    return get_answers_service(question_id, sort)
+
+@router.put("/answers/{answer_id}", response_model=AnswerResponse)
+async def update_answer(
+    answer_id: str,
+    answer: AnswerUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update an answer (author only)"""
+    return update_answer_service(answer_id, answer, current_user)
+
+@router.delete("/answers/{answer_id}")
+async def delete_answer(
+    answer_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete an answer (author/admin only)"""
+    return delete_answer_service(answer_id, current_user)
+
+@router.post("/answers/{answer_id}/accept", response_model=AnswerResponse)
+async def accept_answer(
+    answer_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Mark answer as accepted (question owner only)"""
+    return accept_answer_service(answer_id, current_user)

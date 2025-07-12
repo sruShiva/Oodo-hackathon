@@ -7,13 +7,19 @@ from app.database import users_table
 from app.utils import verify_password, get_password_hash, create_access_token, verify_token
 from app.models import UserCreate, UserLogin, UserResponse, Token
 
+import re
 from typing import List, Optional
 from app.database import questions_table
 from app.models import QuestionCreate, QuestionUpdate, QuestionResponse, QuestionListResponse
 
-import re
+from app.database import answers_table
+from app.models import AnswerCreate, AnswerUpdate, AnswerResponse, AnswerListResponse
+
+
 
 security = HTTPBearer()
+
+#Users management and auth functions
 
 def register_user(user_data: UserCreate):
     User = Query()
@@ -80,6 +86,8 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise credentials_exception
     
     return user[0]
+
+#Qs Functions
 
 def create_question_service(question_data: QuestionCreate, current_user: dict):
     """Create a new question"""
@@ -218,3 +226,187 @@ def delete_question_service(question_id: str, current_user: dict):
     
     questions_table.remove(Question.id == question_id)
     return {"message": "Question deleted successfully"}
+
+#Ans Functions
+
+def create_answer_service(question_id: str, answer_data: AnswerCreate, current_user: dict):
+    """Create a new answer for a question"""
+    Question = Query()
+    question = questions_table.search(Question.id == question_id)
+    
+    if not question:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Question not found"
+        )
+    
+    new_answer = {
+        "id": str(uuid.uuid4()),
+        "content": answer_data.content,
+        "question_id": question_id,
+        "author_id": current_user["id"],
+        "author_username": current_user["username"],
+        "created_at": datetime.utcnow().isoformat(),
+        "updated_at": datetime.utcnow().isoformat(),
+        "vote_count": 0,
+        "is_accepted": False
+    }
+    
+    answers_table.insert(new_answer)
+    
+    # Update question's answer count
+    questions_table.update(
+        {"answer_count": question[0]["answer_count"] + 1},
+        Question.id == question_id
+    )
+    
+    return AnswerResponse(**new_answer)
+
+def get_answers_service(question_id: str, sort: str = "newest"):
+    """Get all answers for a question"""
+    Question = Query()
+    question = questions_table.search(Question.id == question_id)
+    
+    if not question:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Question not found"
+        )
+    
+    Answer = Query()
+    answers = answers_table.search(Answer.question_id == question_id)
+    
+    # Sort answers
+    if sort == "votes":
+        answers.sort(key=lambda x: x['vote_count'], reverse=True)
+    elif sort == "oldest":
+        answers.sort(key=lambda x: x['created_at'])
+    else:  # newest (default)
+        answers.sort(key=lambda x: x['created_at'], reverse=True)
+    
+    # Put accepted answer first if it exists
+    accepted_answers = [a for a in answers if a.get('is_accepted', False)]
+    other_answers = [a for a in answers if not a.get('is_accepted', False)]
+    sorted_answers = accepted_answers + other_answers
+    
+    answer_responses = [AnswerResponse(**answer) for answer in sorted_answers]
+    
+    return AnswerListResponse(
+        answers=answer_responses,
+        total=len(answers),
+        question_id=question_id
+    )
+
+def update_answer_service(answer_id: str, answer_data: AnswerUpdate, current_user: dict):
+    """Update an answer (author only)"""
+    Answer = Query()
+    answer = answers_table.search(Answer.id == answer_id)
+    
+    if not answer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Answer not found"
+        )
+    
+    # Check if user is the author
+    if answer[0]["author_id"] != current_user["id"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to update this answer"
+        )
+    
+    # Update fields
+    update_data = {}
+    if answer_data.content is not None:
+        update_data["content"] = answer_data.content
+    
+    update_data["updated_at"] = datetime.utcnow().isoformat()
+    
+    answers_table.update(update_data, Answer.id == answer_id)
+    
+    updated_answer = answers_table.search(Answer.id == answer_id)[0]
+    return AnswerResponse(**updated_answer)
+
+def delete_answer_service(answer_id: str, current_user: dict):
+    """Delete an answer (author or admin only)"""
+    Answer = Query()
+    answer = answers_table.search(Answer.id == answer_id)
+    
+    if not answer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Answer not found"
+        )
+    
+    # Check if user is the author or admin
+    if answer[0]["author_id"] != current_user["id"] and current_user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to delete this answer"
+        )
+    
+    question_id = answer[0]["question_id"]
+    
+    # Remove the answer
+    answers_table.remove(Answer.id == answer_id)
+    
+    # Update question's answer count
+    Question = Query()
+    question = questions_table.search(Question.id == question_id)
+    if question:
+        questions_table.update(
+            {"answer_count": max(0, question[0]["answer_count"] - 1)},
+            Question.id == question_id
+        )
+    
+    return {"message": "Answer deleted successfully"}
+
+def accept_answer_service(answer_id: str, current_user: dict):
+    """Mark answer as accepted (question owner only)"""
+    Answer = Query()
+    answer = answers_table.search(Answer.id == answer_id)
+    
+    if not answer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Answer not found"
+        )
+    
+    # Get the question to check ownership
+    question_id = answer[0]["question_id"]
+    Question = Query()
+    question = questions_table.search(Question.id == question_id)
+    
+    if not question:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Question not found"
+        )
+    
+    # Check if user is the question owner
+    if question[0]["author_id"] != current_user["id"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only question owner can accept answers"
+        )
+    
+    # Unaccept any previously accepted answers for this question
+    answers_table.update(
+        {"is_accepted": False},
+        Answer.question_id == question_id
+    )
+    
+    # Accept this answer
+    answers_table.update(
+        {"is_accepted": True},
+        Answer.id == answer_id
+    )
+    
+    # Update question with accepted answer ID
+    questions_table.update(
+        {"accepted_answer_id": answer_id},
+        Question.id == question_id
+    )
+    
+    updated_answer = answers_table.search(Answer.id == answer_id)[0]
+    return AnswerResponse(**updated_answer)

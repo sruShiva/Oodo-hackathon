@@ -25,6 +25,7 @@ class Token(BaseModel):
     token_type: str = "bearer"
     user: UserResponse
 
+
 # Question models
 class QuestionCreate(BaseModel):
     title: str
@@ -55,3 +56,27 @@ class QuestionListResponse(BaseModel):
     total: int
     page: int
     limit: int
+
+
+#answer models
+class AnswerCreate(BaseModel):
+    content: str
+
+class AnswerUpdate(BaseModel):
+    content: Optional[str] = None
+
+class AnswerResponse(BaseModel):
+    id: str
+    content: str
+    question_id: str
+    author_id: str
+    author_username: str
+    created_at: datetime
+    updated_at: datetime
+    vote_count: int = 0
+    is_accepted: bool = False
+
+class AnswerListResponse(BaseModel):
+    answers: List[AnswerResponse]
+    total: int
+    question_id: str

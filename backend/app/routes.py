@@ -137,6 +137,7 @@ async def accept_answer(
 
 # voting routes
 @router.post("/answers/{answer_id}/vote", response_model=VoteResult)
+
 async def vote_answer(
     answer_id: str,
     vote: VoteCreate,

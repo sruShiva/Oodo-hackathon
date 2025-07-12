@@ -1,15 +1,22 @@
-// src/User/SignUpPage.js
 import React, { useState, useMemo } from 'react';
 import {
   Box, Container, Typography, TextField, Button, Paper, Switch, Stack,
   useMediaQuery, CssBaseline
 } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 export default function SignUpPage() {
   const [darkMode, setDarkMode] = useState(true);
   const isMobile = useMediaQuery('(max-width:600px)');
+  const navigate = useNavigate();
+
+  // Form state
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
   const theme = useMemo(() =>
     createTheme({
@@ -25,11 +32,30 @@ export default function SignUpPage() {
           secondary: darkMode ? '#B0B0B0' : '#555',
         },
       },
-      typography: {
-        fontFamily: 'Inter, sans-serif',
-      },
+      typography: { fontFamily: 'Inter, sans-serif' },
     }), [darkMode]
   );
+
+  const handleSignUp = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    try {
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/register`, {
+        username,
+        email,
+        password,
+      });
+
+      console.log('Registration successful:', response.data);
+
+      // Redirect to login or home
+      navigate('/login');
+    } catch (err) {
+      console.error(err);
+      setError('Registration failed. Please try again.');
+    }
+  };
 
   return (
     <ThemeProvider theme={theme}>
@@ -62,10 +88,12 @@ export default function SignUpPage() {
               Welcome to <strong>StackIt</strong> – A Minimal Q&A Forum Platform
             </Typography>
 
-            <form>
+            <form onSubmit={handleSignUp}>
               <TextField
                 fullWidth
                 label="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 margin="normal"
                 required
                 InputLabelProps={{ style: { color: theme.palette.text.primary } }}
@@ -74,6 +102,8 @@ export default function SignUpPage() {
                 fullWidth
                 label="Email"
                 type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 margin="normal"
                 required
                 InputLabelProps={{ style: { color: theme.palette.text.primary } }}
@@ -82,11 +112,18 @@ export default function SignUpPage() {
                 fullWidth
                 label="Password"
                 type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 margin="normal"
                 required
                 InputLabelProps={{ style: { color: theme.palette.text.primary } }}
               />
-              <Button fullWidth variant="contained" sx={{ mt: 2, py: 1.5 }}>
+              {error && (
+                <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                  {error}
+                </Typography>
+              )}
+              <Button fullWidth type="submit" variant="contained" sx={{ mt: 2, py: 1.5 }}>
                 Create Account
               </Button>
             </form>

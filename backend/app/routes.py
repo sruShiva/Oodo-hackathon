@@ -20,3 +20,5 @@ async def logout():
 @router.get("/users/profile", response_model=UserResponse)
 async def get_profile(current_user: dict = Depends(get_current_user)):
     return UserResponse(**current_user)
+
+

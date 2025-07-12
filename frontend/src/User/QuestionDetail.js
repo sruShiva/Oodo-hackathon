@@ -8,15 +8,18 @@ import { ThumbUp, ThumbDown, CheckCircle, Menu as MenuIcon } from '@mui/icons-ma
 import { RichTextEditor } from '@mantine/rte';
 import { MantineProvider } from '@mantine/core';
 import { useParams, Link as RouterLink } from 'react-router-dom';
-import mentionExtension from './mentionExtension'
 
-// Sample dummy data — in a real app you'd fetch this by questionId
+import { useEditor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import mentionExtension from './mentionExtension';
+
 const dummyQuestion = {
   title: 'How to join 2 columns in SQL?',
   description: '<p>I have two columns …</p>',
   tags: ['SQL', 'Beginner'],
   user: 'Total Walrus',
 };
+
 const dummyAnswers = [
   { id: 1, user: 'Advanced Yak', content: '<p>Use CONCAT()</p>', votes: 3, accepted: false },
   { id: 2, user: 'Smart Owl', content: '<p>Try using || operator</p>', votes: 5, accepted: true },
@@ -28,6 +31,17 @@ export default function QuestionDetail({ currentUser = 'Total Walrus' }) {
   const isMobile = useMediaQuery('(max-width:37.5em)');
   const [answers, setAnswers] = useState(dummyAnswers);
   const [newAnswer, setNewAnswer] = useState('');
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      ...mentionExtension, // Spread the array of extensions
+    ],
+    content: newAnswer,
+    onUpdate: ({ editor }) => {
+      setNewAnswer(editor.getHTML());
+    },
+  });
 
   const theme = useMemo(() =>
     createTheme({
@@ -44,6 +58,18 @@ export default function QuestionDetail({ currentUser = 'Total Walrus' }) {
     }), [darkMode]
   );
 
+  // Add dark mode class to body for mention styling
+  React.useEffect(() => {
+    if (darkMode) {
+      document.body.classList.add('dark');
+    } else {
+      document.body.classList.remove('dark');
+    }
+    return () => {
+      document.body.classList.remove('dark');
+    };
+  }, [darkMode]);
+
   const handleVote = (id, delta) => {
     setAnswers(a => a.map(ans => ans.id === id ? { ...ans, votes: ans.votes + delta } : ans));
   };
@@ -57,6 +83,9 @@ export default function QuestionDetail({ currentUser = 'Total Walrus' }) {
     const newAnsObj = { id: Date.now(), user: currentUser, content: newAnswer, votes: 0, accepted: false };
     setAnswers([newAnsObj, ...answers]);
     setNewAnswer('');
+    if (editor) {
+      editor.commands.clearContent();
+    }
   };
 
   return (
@@ -68,14 +97,10 @@ export default function QuestionDetail({ currentUser = 'Total Walrus' }) {
             <Toolbar sx={{ justifyContent: 'space-between' }}>
               <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>StackIt</Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-             {!isMobile && (
-                <Button
-                    component={RouterLink}
-                    to="/"
-                    sx={{ color: theme.palette.text.primary }}
-                >
+                {!isMobile && (
+                  <Button component={RouterLink} to="/" sx={{ color: theme.palette.text.primary }}>
                     Home
-                </Button>
+                  </Button>
                 )}
                 <Switch checked={darkMode} onChange={() => setDarkMode(!darkMode)} color="primary" />
                 <IconButton><MenuIcon sx={{ color: theme.palette.text.primary }} /></IconButton>
@@ -85,23 +110,18 @@ export default function QuestionDetail({ currentUser = 'Total Walrus' }) {
 
           <Container maxWidth="md" sx={{ py: 4 }}>
             <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
-              <Link component={RouterLink} to="/questions" underline="hover" color="inherit">
-                Questions
-              </Link>
-              <Typography color="text.primary">
-                {dummyQuestion.title}
-              </Typography>
+              <Link component={RouterLink} to="/questions" underline="hover" color="inherit">Questions</Link>
+              <Typography color="text.primary">{dummyQuestion.title}</Typography>
             </Breadcrumbs>
 
-            {/* Question */}
             <Box sx={{ backgroundColor: theme.palette.background.paper, p: 3, borderRadius: 2, mb: 4 }}>
               <Typography variant={isMobile ? 'h5' : 'h4'} fontWeight={600} sx={{ mb: 1 }}>
                 {dummyQuestion.title}
               </Typography>
               <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-                {dummyQuestion.tags.map(t =>
+                {dummyQuestion.tags.map(t => (
                   <Chip key={t} label={t} size="small" sx={{ bgcolor: '#2E2E2E', color: '#fff' }} />
-                )}
+                ))}
               </Stack>
               <Box dangerouslySetInnerHTML={{ __html: dummyQuestion.description }} sx={{ mb: 2 }} />
               <Typography variant="caption" sx={{ color: theme.palette.primary.main }}>
@@ -109,7 +129,6 @@ export default function QuestionDetail({ currentUser = 'Total Walrus' }) {
               </Typography>
             </Box>
 
-            {/* Answers */}
             <Typography variant="h6" sx={{ mb: 2 }}>Answers ({answers.length})</Typography>
             <Stack spacing={2}>
               {answers.map(ans => (
@@ -132,12 +151,31 @@ export default function QuestionDetail({ currentUser = 'Total Walrus' }) {
               ))}
             </Stack>
 
-            {/* Submit Answer */}
+            {/* Editor */}
             <Box sx={{ mt: 4 }}>
               <Typography sx={{ mb: 1 }}>Your Answer</Typography>
-              <RichTextEditor value={newAnswer} onChange={setNewAnswer} sticky={false}   extensions={[mentionExtension]}/>
+              <RichTextEditor
+                editor={editor}
+                sticky={false}
+                placeholder="Type @ to mention a user"
+                sx={{
+                  '& .ProseMirror': {
+                    minHeight: '150px',
+                    padding: '12px',
+                    outline: 'none',
+                    '& .mention': {
+                      backgroundColor: darkMode ? '#2d3748' : '#eef6ff',
+                      color: darkMode ? '#90cdf4' : '#1a73e8',
+                    }
+                  }
+                }}
+              />
               <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                <Button variant="contained" disabled={!newAnswer.trim()} onClick={handleSubmit}>
+                <Button
+                  variant="contained"
+                  disabled={!newAnswer.trim()}
+                  onClick={handleSubmit}
+                >
                   Submit Answer
                 </Button>
               </Box>

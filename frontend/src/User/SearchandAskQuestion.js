@@ -7,6 +7,7 @@ import {
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import MenuIcon from '@mui/icons-material/Menu';
 import NotificationsIcon from '@mui/icons-material/Notifications';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import axios from 'axios';
 
@@ -70,40 +71,39 @@ export default function SearchAndAskQuestion() {
     }
   };
 
- const handleAIResponse = async (question) => {
-  const { id, title, description } = question;
-  setLoadingAI(prev => ({ ...prev, [id]: true }));
+  const handleAIResponse = async (question) => {
+    const { id, title, description } = question;
+    setLoadingAI(prev => ({ ...prev, [id]: true }));
 
-  try {
-    const token = localStorage.getItem('token');
-    const res = await axios.post(
-      `http://localhost:8000/ai/generate-response`,
-      {
-        title,
-        description,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(
+        `http://localhost:8000/ai/generate-response`,
+        {
+          title,
+          description,
         },
-      }
-    );
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-    setAiResponses(prev => ({
-      ...prev,
-      [id]: res.data.response || 'No response generated.',
-    }));
-  } catch (err) {
-    console.error('Error generating AI response:', err);
-    setAiResponses(prev => ({
-      ...prev,
-      [id]: 'Failed to generate AI response.',
-    }));
-  } finally {
-    setLoadingAI(prev => ({ ...prev, [id]: false }));
-  }
-};
-
+      setAiResponses(prev => ({
+        ...prev,
+        [id]: res.data.response || 'No response generated.',
+      }));
+    } catch (err) {
+      console.error('Error generating AI response:', err);
+      setAiResponses(prev => ({
+        ...prev,
+        [id]: 'Failed to generate AI response.',
+      }));
+    } finally {
+      setLoadingAI(prev => ({ ...prev, [id]: false }));
+    }
+  };
 
   useEffect(() => {
     fetchAllQuestions();
@@ -115,7 +115,6 @@ export default function SearchAndAskQuestion() {
 
     debounceTimer.current = setTimeout(() => {
       const search = searchText.trim().toLowerCase();
-
       let filtered = allQuestions;
 
       if (showUnanswered) {
@@ -162,17 +161,27 @@ export default function SearchAndAskQuestion() {
             <Typography variant="h6" sx={{ fontWeight: 'bold', color: theme.palette.text.primary }}>
               StackIt
             </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: isMobile ? 1 : 2 }}>
               <IconButton onClick={handleNotifClick}>
                 <NotificationsIcon sx={{ color: theme.palette.text.primary }} />
               </IconButton>
-              {!isMobile && (
+
+              {isMobile ? (
+                <IconButton component={RouterLink} to="/login">
+                  <AccountCircleIcon sx={{ color: theme.palette.text.primary }} />
+                </IconButton>
+              ) : (
                 <Button component={RouterLink} to="/login" sx={{ color: theme.palette.text.primary }}>
                   Login
                 </Button>
               )}
+
               <Switch checked={darkMode} onChange={() => setDarkMode(!darkMode)} color="primary" />
-              <IconButton><MenuIcon sx={{ color: theme.palette.text.primary }} /></IconButton>
+
+              <IconButton>
+                <MenuIcon sx={{ color: theme.palette.text.primary }} />
+              </IconButton>
             </Box>
           </Toolbar>
         </AppBar>
@@ -223,7 +232,7 @@ export default function SearchAndAskQuestion() {
                 Unanswered
               </Button>
             </Grid>
-            <Grid item xs={6}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 placeholder="Search questions, tags, or author..."
@@ -250,7 +259,7 @@ export default function SearchAndAskQuestion() {
                   <Chip label={`${q.answer_count} ans`} size="small" sx={{ backgroundColor: '#2E2E2E', color: '#fff' }} />
                 </Box>
 
-                <Box sx={{ display: 'flex', gap: 1, my: 1 }}>
+                <Box sx={{ display: 'flex', gap: 1, my: 1, flexWrap: 'wrap' }}>
                   {q.tags.map((tag, i) => (
                     <Chip key={i} label={tag} size="small" sx={{ backgroundColor: '#2E2E2E', color: '#fff' }} />
                   ))}
@@ -262,7 +271,7 @@ export default function SearchAndAskQuestion() {
                   dangerouslySetInnerHTML={{ __html: q.description }}
                 />
 
-                <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between' }}>
+                <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap' }}>
                   <Typography variant="caption" sx={{ color: theme.palette.primary.main }}>
                     {q.author_username}
                   </Typography>
@@ -270,13 +279,12 @@ export default function SearchAndAskQuestion() {
                     <Button size="small" variant="text" onClick={() => navigate(`/questions/${q.id}`)}>
                       Answer Now
                     </Button>
-                    <Button size="small" variant="outlined" onClick={() => handleAIResponse(q.id)}>
+                    <Button size="small" variant="outlined" onClick={() => handleAIResponse(q)}>
                       Check AI Response
                     </Button>
                   </Box>
                 </Box>
 
-                {/* AI Response Section */}
                 {aiResponses[q.id] && (
                   <Box
                     sx={{
@@ -306,7 +314,6 @@ export default function SearchAndAskQuestion() {
             </Card>
           ))}
 
-          {/* Pagination */}
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
             <Pagination
               count={Math.ceil(filteredQuestions.length / limit)}

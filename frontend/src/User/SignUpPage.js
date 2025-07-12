@@ -1,18 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import {
   Box, Container, Typography, TextField, Button, Paper, Switch, Stack,
-  useMediaQuery, CssBaseline
+  useMediaQuery, CssBaseline, IconButton
 } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { Link, useNavigate } from 'react-router-dom';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import axios from 'axios';
-
 export default function SignUpPage() {
   const [darkMode, setDarkMode] = useState(true);
   const isMobile = useMediaQuery('(max-width:600px)');
   const navigate = useNavigate();
 
-  // Form state
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -48,8 +47,6 @@ export default function SignUpPage() {
       });
 
       console.log('Registration successful:', response.data);
-
-      // Redirect to login or home
       navigate('/login');
     } catch (err) {
       console.error(err);
@@ -77,10 +74,15 @@ export default function SignUpPage() {
               <Typography variant="h5" fontWeight={600} color="text.primary">
                 Sign Up
               </Typography>
+
               <Stack direction="row" spacing={1} alignItems="center">
-                <Typography variant="body2" color="text.secondary">☀</Typography>
+                {!isMobile && (
+                  <Typography variant="body2" color="text.secondary">☀</Typography>
+                )}
                 <Switch checked={darkMode} onChange={() => setDarkMode(!darkMode)} color="primary" />
-                <Typography variant="body2" color="text.secondary">🌙</Typography>
+                {!isMobile && (
+                  <Typography variant="body2" color="text.secondary">🌙</Typography>
+                )}
               </Stack>
             </Box>
 
@@ -132,9 +134,16 @@ export default function SignUpPage() {
               <Typography variant="body2" color="text.secondary">
                 Already have an account?
               </Typography>
-              <Button component={Link} to="/login" variant="text" size="small">
-                Login
-              </Button>
+
+              {isMobile ? (
+                <IconButton component={Link} to="/login" sx={{ color: theme.palette.text.primary }}>
+                  <AccountCircleIcon />
+                </IconButton>
+              ) : (
+                <Button component={Link} to="/login" variant="text" size="small">
+                  Login
+                </Button>
+              )}
             </Box>
           </Paper>
         </Container>

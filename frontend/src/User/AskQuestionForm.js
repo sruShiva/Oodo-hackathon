@@ -82,19 +82,41 @@ export default function AskQuestionForm() {
         <CssBaseline />
         <Box sx={{ minHeight: '100vh' }}>
           {/* App Bar */}
-          <AppBar position="static" color="default" elevation={0} sx={{ backgroundColor: theme.palette.background.paper }}>
-            <Toolbar sx={{ justifyContent: 'space-between' }}>
+          <AppBar
+            position="static"
+            color="default"
+            elevation={0}
+            sx={{ backgroundColor: theme.palette.background.paper }}
+          >
+            <Toolbar sx={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
               <Typography variant="h6" sx={{ fontWeight: 'bold', color: theme.palette.text.primary }}>
                 Ask a Question
               </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                {!isMobile && (
-                  <Button component={RouterLink} to="/" sx={{ color: theme.palette.text.primary }}>
-                    Home
-                  </Button>
-                )}
-                <Switch checked={darkMode} onChange={() => setDarkMode(!darkMode)} color="primary" />
-                <IconButton><MenuIcon sx={{ color: theme.palette.text.primary }} /></IconButton>
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 1,
+                  mt: { xs: 1, sm: 0 },
+                }}
+              >
+                <Button
+                  component={RouterLink}
+                  to="/"
+                  sx={{ color: theme.palette.text.primary, textTransform: 'none' }}
+                >
+                  HOME
+                </Button>
+                <Switch
+                  checked={darkMode}
+                  onChange={() => setDarkMode(!darkMode)}
+                  color="primary"
+                />
+                <IconButton>
+                  <MenuIcon sx={{ color: theme.palette.text.primary }} />
+                </IconButton>
               </Box>
             </Toolbar>
           </AppBar>
@@ -113,11 +135,13 @@ export default function AskQuestionForm() {
               />
 
               <Typography sx={{ mb: 1, color: theme.palette.text.primary }}>Description</Typography>
-              <Box sx={{
-                '& .ProseMirror': { minHeight: '150px', padding: '12px', outline: 'none' },
-                mb: 3,
-                backgroundColor: theme.palette.background.paper,
-              }}>
+              <Box
+                sx={{
+                  '& .ProseMirror': { minHeight: '150px', padding: '12px', outline: 'none' },
+                  mb: 3,
+                  backgroundColor: theme.palette.background.paper,
+                }}
+              >
                 <RichTextEditor
                   value={description}
                   onChange={setDescription}

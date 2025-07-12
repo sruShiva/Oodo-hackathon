@@ -49,7 +49,7 @@ export default function SearchAndAskQuestion() {
 
   const fetchAllQuestions = async () => {
     try {
-      const res = await axios.get('http://localhost:8000/get-questions');
+      const res = await axios.get(`${process.env.REACT_APP_API_URL}/get-questions`);
       setAllQuestions(res.data.questions || []);
     } catch (err) {
       console.error('Failed to fetch questions', err);
@@ -57,19 +57,19 @@ export default function SearchAndAskQuestion() {
   };
 
   const fetchNotifications = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return;
 
-      const res = await axios.get('http://localhost:8000/notifications', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+    const res = await axios.get(`${process.env.REACT_APP_API_URL}/notifications`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
 
-      setNotifications(res.data.notifications || []);
-    } catch (err) {
-      console.error('Failed to fetch notifications', err);
-    }
-  };
+    setNotifications(res.data.notifications || []);
+  } catch (err) {
+    console.error('Failed to fetch notifications', err);
+  }
+};
 
   const handleAIResponse = async (question) => {
     const { id, title, description } = question;
@@ -78,7 +78,7 @@ export default function SearchAndAskQuestion() {
     try {
       const token = localStorage.getItem('token');
       const res = await axios.post(
-        `http://localhost:8000/ai/generate-response`,
+        `${process.env.REACT_APP_API_URL}/ai/generate-response`,
         {
           title,
           description,

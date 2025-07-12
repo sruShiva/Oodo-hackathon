@@ -55,7 +55,7 @@ export default function AskQuestionForm() {
     try {
       setLoading(true);
       const response = await axios.post(
-        'http://localhost:8000/questions',
+        `${process.env.REACT_APP_API_URL}/questions`,
         payload,
         {
           headers: {

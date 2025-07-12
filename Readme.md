@@ -8,7 +8,8 @@ and focused on the core experience of asking and answering questions within a
 community. 
 
 
-**Team Name:** Team Neural Nets  
+**Team Name:** Team Neural Nets
+
 **Team Members:**  
 - Sruthi Shivaramakrishnan – [sruthi.s.inspire@gmail.com](mailto:sruthi.s.inspire@gmail.com)  
 - Astik Jadhav – [astik.jadhav@hotmail.com](mailto:astik.jadhav@hotmail.com)

@@ -43,6 +43,9 @@ from app.auth import (
     mark_all_notifications_read_service
 )
 
+from app.models import AIQuestionRequest, AIAnswerResponse
+from app.auth import get_ai_answer_service
+
 
 router = APIRouter()
 
@@ -246,3 +249,11 @@ async def mark_all_notifications_read(
 ):
     """Mark all notifications as read"""
     return mark_all_notifications_read_service(current_user)
+
+#ai route
+@router.post("/questions/answers_ai", response_model=AIAnswerResponse)
+async def get_ai_answer(
+    question_request: AIQuestionRequest
+):
+    """Get AI-generated answer using Gemini 2.0 Flash"""
+    return get_ai_answer_service(question_request)

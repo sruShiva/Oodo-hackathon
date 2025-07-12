@@ -149,3 +149,13 @@ class NotificationResponse(BaseModel):
 class NotificationListResponse(BaseModel):
     notifications: List[NotificationResponse]
     unread_count: int
+
+
+#genai models
+class AIQuestionRequest(BaseModel):
+    question: str
+
+class AIAnswerResponse(BaseModel):
+    answer: str
+    model_used: str = "gemini-2.0-flash-exp"
+    response_time: Optional[float] = None

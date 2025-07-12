@@ -26,6 +26,11 @@ from app.models import AdminBanUser, AdminMessage, AdminBanResponse, AdminMessag
 from app.database import notifications_table
 from app.models import NotificationResponse, NotificationListResponse
 
+import google.generativeai as genai
+import time
+from app.config import settings
+from app.models import AIQuestionRequest, AIAnswerResponse
+
 
 
 security = HTTPBearer()
@@ -756,3 +761,91 @@ def create_notification_helper(user_id: str, notification_type: str, message: st
     }
     
     notifications_table.insert(new_notification)
+
+
+# Configure Google AI
+genai.configure(api_key=settings.google_ai_api_key)
+
+# # Add this AI service function
+# def get_ai_answer_service(question_request: AIQuestionRequest):
+#     """Get AI-generated answer using Gemini 2.0 Flash"""
+#     try:
+#         start_time = time.time()
+        
+#         # Initialize the Gemini model
+#         model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        
+#         # Create a prompt for Q&A context
+#         prompt = f"""
+#         You are a helpful assistant for a Q&A platform called StackIt. 
+#         Please provide a clear, concise, and helpful answer to the following question:
+        
+#         Question: {question_request.question}
+        
+#         Please format your response in a way that would be helpful for developers and tech enthusiasts.
+#         """
+        
+#         # Generate response
+#         response = model.generate_content(prompt)
+        
+#         end_time = time.time()
+#         response_time = round(end_time - start_time, 2)
+        
+#         return AIAnswerResponse(
+#             answer=response.text,
+#             model_used="gemini-2.0-flash-exp",
+#             response_time=response_time
+#         )
+        
+#     except Exception as e:
+#         # Handle API errors gracefully
+#         return AIAnswerResponse(
+#             answer=f"Sorry, I couldn't generate an answer at the moment. Error: {str(e)}",
+#             model_used="gemini-2.0-flash-exp",
+#             response_time=0.0
+#         )
+    
+
+
+def get_ai_answer_service(question_request: AIQuestionRequest):
+    """Get AI-generated answer using Gemini 2.5 Flash Lite Preview"""
+    try:
+        start_time = time.time()
+        
+        # Use Gemini 2.5 Flash Lite Preview model
+        model = genai.GenerativeModel('gemini-2.5-flash-lite-preview-06-17')
+        
+        # Enhanced structured prompt for crisp, bullet-point answers
+        prompt = f"""
+        You are a technical expert for StackIt Q&A platform. 
+        Provide a STRUCTURED, CONCISE answer to: {question_request.question}
+        
+        FORMAT REQUIREMENTS:
+        • Use bullet points for key information
+        • Keep answers SHORT and CRISP
+        • Include code examples only if essential
+        • Maximum 3-4 bullet points
+        • Each point should be 1-2 sentences max
+        
+        EXAMPLE FORMAT:
+        • **Main Solution**: Brief explanation
+        • **Key Steps**: Essential actions to take
+        • **Best Practice**: Important tip
+        • **Common Pitfall**: What to avoid
+        """
+        
+        response = model.generate_content(prompt)
+        end_time = time.time()
+        
+        return AIAnswerResponse(
+            answer=response.text,
+            model_used="gemini-2.5-flash-lite-preview-06-17",
+            response_time=round(end_time - start_time, 2)
+        )
+        
+    except Exception as e:
+        return AIAnswerResponse(
+            answer="• **Error**: AI service temporarily unavailable\n• **Solution**: Try again in a moment or ask the community",
+            model_used="error-handler",
+            response_time=0.0
+        )

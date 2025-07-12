@@ -80,3 +80,34 @@ class AnswerListResponse(BaseModel):
     answers: List[AnswerResponse]
     total: int
     question_id: str
+
+
+#voting models
+class VoteCreate(BaseModel):
+    vote_type: str  # "upvote" or "downvote"
+
+class VoteResponse(BaseModel):
+    id: str
+    answer_id: str
+    user_id: str
+    vote_type: str
+    created_at: datetime
+
+class VoteResult(BaseModel):
+    message: str
+    answer_id: str
+    new_vote_count: int
+    user_vote: Optional[str] = None  # Current user's vote type
+
+
+#tag models
+class TagCreate(BaseModel):
+    name: str
+
+class TagResponse(BaseModel):
+    name: str
+    usage_count: int = 0
+
+class TagListResponse(BaseModel):
+    tags: List[TagResponse]
+    total: int

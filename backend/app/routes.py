@@ -12,9 +12,24 @@ from app.auth import (
     delete_question_service
 )
 
+from app.models import AnswerCreate, AnswerUpdate, AnswerResponse, AnswerListResponse
+from app.auth import (
+    create_answer_service,
+    get_answers_service,
+    update_answer_service,
+    delete_answer_service,
+    accept_answer_service
+)
+
+from app.models import VoteCreate, VoteResult
+from app.auth import vote_answer_service, remove_vote_service
+
+from app.models import TagCreate, TagResponse, TagListResponse
+from app.auth import get_tags_service, create_tag_service
+
 router = APIRouter()
 
-# Authentication Routes
+# authentication routes
 @router.post("/auth/register")
 async def register(user: UserCreate):
     return register_user(user)
@@ -31,7 +46,8 @@ async def logout():
 async def get_profile(current_user: dict = Depends(get_current_user)):
     return UserResponse(**current_user)
 
-# Question Management Routes
+
+# question management Routes
 @router.post("/questions", response_model=QuestionResponse)
 async def create_question(
     question: QuestionCreate,

@@ -15,6 +15,12 @@ from app.models import QuestionCreate, QuestionUpdate, QuestionResponse, Questio
 from app.database import answers_table
 from app.models import AnswerCreate, AnswerUpdate, AnswerResponse, AnswerListResponse
 
+from app.database import votes_table
+from app.models import VoteCreate, VoteResult
+
+from app.database import tags_table
+from app.models import TagCreate, TagResponse, TagListResponse
+
 
 
 security = HTTPBearer()
@@ -410,3 +416,193 @@ def accept_answer_service(answer_id: str, current_user: dict):
     
     updated_answer = answers_table.search(Answer.id == answer_id)[0]
     return AnswerResponse(**updated_answer)
+
+
+#Voting Functions
+
+
+def vote_answer_service(answer_id: str, vote_data: VoteCreate, current_user: dict):
+    """Upvote or downvote an answer"""
+    # Check if answer exists
+    Answer = Query()
+    answer = answers_table.search(Answer.id == answer_id)
+    
+    if not answer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Answer not found"
+        )
+    
+    # Validate vote type
+    if vote_data.vote_type not in ["upvote", "downvote"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Vote type must be 'upvote' or 'downvote'"
+        )
+    
+    # Check if user already voted on this answer
+    Vote = Query()
+    existing_vote = votes_table.search(
+        (Vote.answer_id == answer_id) & (Vote.user_id == current_user["id"])
+    )
+    
+    if existing_vote:
+        # Update existing vote if different
+        if existing_vote[0]["vote_type"] != vote_data.vote_type:
+            votes_table.update(
+                {
+                    "vote_type": vote_data.vote_type,
+                    "created_at": datetime.utcnow().isoformat()
+                },
+                (Vote.answer_id == answer_id) & (Vote.user_id == current_user["id"])
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"You have already {vote_data.vote_type}d this answer"
+            )
+    else:
+        # Create new vote
+        new_vote = {
+            "id": str(uuid.uuid4()),
+            "answer_id": answer_id,
+            "user_id": current_user["id"],
+            "vote_type": vote_data.vote_type,
+            "created_at": datetime.utcnow().isoformat()
+        }
+        votes_table.insert(new_vote)
+    
+    # Calculate new vote count
+    upvotes = len(votes_table.search((Vote.answer_id == answer_id) & (Vote.vote_type == "upvote")))
+    downvotes = len(votes_table.search((Vote.answer_id == answer_id) & (Vote.vote_type == "downvote")))
+    new_vote_count = upvotes - downvotes
+    
+    # Update answer's vote count
+    answers_table.update(
+        {"vote_count": new_vote_count},
+        Answer.id == answer_id
+    )
+    
+    return VoteResult(
+        message=f"Answer {vote_data.vote_type}d successfully",
+        answer_id=answer_id,
+        new_vote_count=new_vote_count,
+        user_vote=vote_data.vote_type
+    )
+
+def remove_vote_service(answer_id: str, current_user: dict):
+    """Remove user's vote from an answer"""
+    # Check if answer exists
+    Answer = Query()
+    answer = answers_table.search(Answer.id == answer_id)
+    
+    if not answer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Answer not found"
+        )
+    
+    # Check if user has voted on this answer
+    Vote = Query()
+    existing_vote = votes_table.search(
+        (Vote.answer_id == answer_id) & (Vote.user_id == current_user["id"])
+    )
+    
+    if not existing_vote:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You haven't voted on this answer"
+        )
+    
+    # Remove the vote
+    votes_table.remove(
+        (Vote.answer_id == answer_id) & (Vote.user_id == current_user["id"])
+    )
+    
+    # Recalculate vote count
+    upvotes = len(votes_table.search((Vote.answer_id == answer_id) & (Vote.vote_type == "upvote")))
+    downvotes = len(votes_table.search((Vote.answer_id == answer_id) & (Vote.vote_type == "downvote")))
+    new_vote_count = upvotes - downvotes
+    
+    # Update answer's vote count
+    answers_table.update(
+        {"vote_count": new_vote_count},
+        Answer.id == answer_id
+    )
+    
+    return VoteResult(
+        message="Vote removed successfully",
+        answer_id=answer_id,
+        new_vote_count=new_vote_count,
+        user_vote=None
+    )
+
+
+
+# tag service functions
+def get_tags_service(search: Optional[str] = None, limit: int = 100):
+    """Get available tags for multi-select dropdown"""
+    # Get all unique tags from existing questions
+    all_questions = questions_table.all()
+    tag_usage = {}
+    
+    # Count tag usage across all questions
+    for question in all_questions:
+        for tag in question.get('tags', []):
+            tag_lower = tag.lower()
+            if tag_lower in tag_usage:
+                tag_usage[tag_lower]['count'] += 1
+                # Keep the most recent capitalization
+                tag_usage[tag_lower]['name'] = tag
+            else:
+                tag_usage[tag_lower] = {
+                    'name': tag,
+                    'count': 1
+                }
+    
+    # Build simple tag responses
+    tag_responses = []
+    for tag_key, usage_data in tag_usage.items():
+        # Apply search filter if provided
+        if search and search.lower() not in usage_data['name'].lower():
+            continue
+            
+        tag_response = TagResponse(
+            name=usage_data['name'],
+            usage_count=usage_data['count']
+        )
+        tag_responses.append(tag_response)
+    
+    # Sort by usage count (most popular first) for better UX
+    tag_responses.sort(key=lambda x: x.usage_count, reverse=True)
+    
+    # Apply limit
+    limited_tags = tag_responses[:limit]
+    
+    return TagListResponse(
+        tags=limited_tags,
+        total=len(tag_responses)
+    )
+
+def create_tag_service(tag_data: TagCreate, current_user: dict):
+    """Simple tag creation - just validate and return the tag name"""
+    tag_name = tag_data.name.strip()
+    
+    # Basic validation
+    if len(tag_name) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tag name must be at least 2 characters long"
+        )
+    
+    if len(tag_name) > 30:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tag name must be less than 30 characters"
+        )
+    
+    # Return the tag (it will be created when used in a question)
+    return TagResponse(
+        name=tag_name,
+        usage_count=0
+    )

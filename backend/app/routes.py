@@ -21,9 +21,15 @@ from app.auth import (
     accept_answer_service
 )
 
+from app.models import VoteCreate, VoteResult
+from app.auth import vote_answer_service, remove_vote_service
+
+from app.models import TagCreate, TagResponse, TagListResponse
+from app.auth import get_tags_service, create_tag_service
+
 router = APIRouter()
 
-# Authentication Routes
+# authentication routes
 @router.post("/auth/register")
 async def register(user: UserCreate):
     return register_user(user)
@@ -41,7 +47,7 @@ async def get_profile(current_user: dict = Depends(get_current_user)):
     return UserResponse(**current_user)
 
 
-# Question Management Routes
+# question management Routes
 @router.post("/questions", response_model=QuestionResponse)
 async def create_question(
     question: QuestionCreate,
@@ -85,7 +91,7 @@ async def delete_question(
     return delete_question_service(question_id, current_user)
 
 
-# Answer Management Routes
+# answer management routes
 @router.post("/questions/{question_id}/answers", response_model=AnswerResponse)
 async def create_answer(
     question_id: str,
@@ -127,3 +133,40 @@ async def accept_answer(
 ):
     """Mark answer as accepted (question owner only)"""
     return accept_answer_service(answer_id, current_user)
+
+
+# voting routes
+@router.post("/answers/{answer_id}/vote", response_model=VoteResult)
+async def vote_answer(
+    answer_id: str,
+    vote: VoteCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Upvote or downvote an answer"""
+    return vote_answer_service(answer_id, vote, current_user)
+
+@router.delete("/answers/{answer_id}/vote", response_model=VoteResult)
+async def remove_vote(
+    answer_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Remove vote from an answer"""
+    return remove_vote_service(answer_id, current_user)
+
+
+# tag management routes
+@router.get("/tags", response_model=TagListResponse)
+async def get_tags(
+    search: Optional[str] = None,
+    limit: int = 100
+):
+    """Get available tags for multi-select dropdown"""
+    return get_tags_service(search, limit)
+
+@router.post("/tags", response_model=TagResponse)
+async def create_tag(
+    tag: TagCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create new tag (returns immediately, will be saved when used in question)"""
+    return create_tag_service(tag, current_user)

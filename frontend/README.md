@@ -25,6 +25,15 @@ frontend/
 │   ├── manifest.json
 │   └── robots.txt
 ├── src/
+│   ├── User/
+│   │   ├── AskQuestionForm.js
+│   │   ├── AuthThemeProvider.js
+│   │   ├── LoginPage.js
+│   │   ├── mentionExtension.js
+│   │   ├── PrivateRoute.js
+│   │   ├── QuestionDetail.js
+│   │   ├── SearchAndAskQuestion.js
+│   │   └── SignUpPage.js
 │   ├── App.css
 │   ├── App.js
 │   ├── App.test.js
@@ -33,6 +42,7 @@ frontend/
 │   ├── logo.svg
 │   ├── reportWebVitals.js
 │   └── setupTests.js
+├── .env
 ├── .gitignore
 ├── package.json
 ├── package-lock.json

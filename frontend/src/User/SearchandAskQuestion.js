@@ -71,40 +71,37 @@ export default function SearchAndAskQuestion() {
   }
 };
 
-  const handleAIResponse = async (question) => {
-    const { id, title, description } = question;
-    setLoadingAI(prev => ({ ...prev, [id]: true }));
 
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post(
-        `${process.env.REACT_APP_API_URL}/ai/generate-response`,
-        {
-          title,
-          description,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+const handleAIResponse = async (question) => {
+  const { id, title, description } = question;
 
-      setAiResponses(prev => ({
-        ...prev,
-        [id]: res.data.response || 'No response generated.',
-      }));
-    } catch (err) {
-      console.error('Error generating AI response:', err);
-      setAiResponses(prev => ({
-        ...prev,
-        [id]: 'Failed to generate AI response.',
-      }));
-    } finally {
-      setLoadingAI(prev => ({ ...prev, [id]: false }));
-    }
-  };
+  setLoadingAI(prev => ({ ...prev, [id]: true }));
 
+  try {
+    const response = await axios.post(
+      `${process.env.REACT_APP_API_URL}/questions/answers_ai`,
+      {
+        question: `${title}\n\n${description}`, 
+      },
+    
+    );
+    console.log(response)
+    setAiResponses(prev => ({
+      ...prev,
+      [id]: response.data.answer || 'No response generated.',
+    }));
+  } catch (error) {
+    console.error('Error generating AI response:', error);
+    setAiResponses(prev => ({
+      ...prev,
+      [id]: 'Failed to generate AI response.',
+    }));
+  } finally {
+    setLoadingAI(prev => ({ ...prev, [id]: false }));
+  }
+};
+
+ 
   useEffect(() => {
     fetchAllQuestions();
     fetchNotifications();

@@ -53,7 +53,8 @@ def authenticate_user(user_data: UserLogin):
     
     user = user[0]
     access_token = create_access_token(data={"sub": user["email"]})
-    
+    user["access_token"] = access_token
+    users_table.update(user, Query().email == user["email"])
     return Token(
         access_token=access_token,
         token_type="bearer",

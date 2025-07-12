@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box, Container, Typography, Button, Chip, Avatar, IconButton,
   Stack, CssBaseline, Switch, AppBar, Toolbar, useMediaQuery, Breadcrumbs, Link,
@@ -8,46 +8,25 @@ import { ThumbUp, ThumbDown, CheckCircle, Menu as MenuIcon } from '@mui/icons-ma
 import { RichTextEditor } from '@mantine/rte';
 import { MantineProvider } from '@mantine/core';
 import { useParams, Link as RouterLink } from 'react-router-dom';
+import axios from 'axios';
 
-import { useEditor } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import mentionExtension from './mentionExtension';
-
-const dummyQuestion = {
-  title: 'How to join 2 columns in SQL?',
-  description: '<p>I have two columns …</p>',
-  tags: ['SQL', 'Beginner'],
-  user: 'Total Walrus',
-};
-
-const dummyAnswers = [
-  { id: 1, user: 'Advanced Yak', content: '<p>Use CONCAT()</p>', votes: 3, accepted: false },
-  { id: 2, user: 'Smart Owl', content: '<p>Try using || operator</p>', votes: 5, accepted: true },
-];
-
-export default function QuestionDetail({ currentUser = 'Total Walrus' }) {
+export default function QuestionDetail() {
   const { questionId } = useParams();
   const [darkMode, setDarkMode] = useState(true);
   const isMobile = useMediaQuery('(max-width:37.5em)');
-  const [answers, setAnswers] = useState(dummyAnswers);
+  const [question, setQuestion] = useState(null);
+  const [answers, setAnswers] = useState([]);
   const [newAnswer, setNewAnswer] = useState('');
-
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      ...mentionExtension, // Spread the array of extensions
-    ],
-    content: newAnswer,
-    onUpdate: ({ editor }) => {
-      setNewAnswer(editor.getHTML());
-    },
-  });
+  const currentUser = localStorage.getItem('username') || 'Guest';
 
   const theme = useMemo(() =>
     createTheme({
       palette: {
         mode: darkMode ? 'dark' : 'light',
-        background: { default: darkMode ? '#121212' : '#f5f5f5', paper: darkMode ? '#1E1E1E' : '#fff' },
+        background: {
+          default: darkMode ? '#121212' : '#f5f5f5',
+          paper: darkMode ? '#1E1E1E' : '#fff',
+        },
         primary: { main: '#A259FF' },
         text: {
           primary: darkMode ? '#fff' : '#121212',
@@ -58,35 +37,72 @@ export default function QuestionDetail({ currentUser = 'Total Walrus' }) {
     }), [darkMode]
   );
 
-  // Add dark mode class to body for mention styling
-  React.useEffect(() => {
-    if (darkMode) {
-      document.body.classList.add('dark');
-    } else {
-      document.body.classList.remove('dark');
-    }
-    return () => {
-      document.body.classList.remove('dark');
-    };
+  // Apply dark mode class to body (for mentions)
+  useEffect(() => {
+    document.body.classList.toggle('dark', darkMode);
+    return () => document.body.classList.remove('dark');
   }, [darkMode]);
 
+  // Fetch question and answers
+  useEffect(() => {
+    const fetchQuestion = async () => {
+      try {
+        const res = await axios.get(`http://localhost:8000/get-specific-questions/${questionId}`);
+        setQuestion(res.data);
+      } catch (err) {
+        console.error('Failed to fetch question:', err);
+      }
+    };
+
+    const fetchAnswers = async () => {
+      try {
+        const res = await axios.get(`http://localhost:8000/answers/${questionId}`);
+        setAnswers(res.data.answers || []);
+      } catch (err) {
+        console.error('Failed to fetch answers:', err);
+      }
+    };
+
+    fetchQuestion();
+    fetchAnswers();
+  }, [questionId]);
+
+  const handleSubmitAnswer = async () => {
+    const token = localStorage.getItem('token');
+    if (!token || !newAnswer.trim()) return;
+
+    try {
+      const res = await axios.post(
+        `http://localhost:8000/answers/${questionId}`,
+        { content: newAnswer },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      setAnswers([res.data, ...answers]);
+      setNewAnswer('');
+    } catch (err) {
+      console.error('Error submitting answer:', err);
+      alert("Failed to post your answer.");
+    }
+  };
+
   const handleVote = (id, delta) => {
-    setAnswers(a => a.map(ans => ans.id === id ? { ...ans, votes: ans.votes + delta } : ans));
+    setAnswers(a =>
+      a.map(ans => (ans.id === id ? { ...ans, votes: ans.votes + delta } : ans))
+    );
+    // Optionally: call backend for vote
   };
 
   const handleAccept = (id) => {
     setAnswers(a => a.map(ans => ({ ...ans, accepted: ans.id === id })));
+    // Optionally: send accept to backend
   };
 
-  const handleSubmit = () => {
-    if (!newAnswer.trim()) return;
-    const newAnsObj = { id: Date.now(), user: currentUser, content: newAnswer, votes: 0, accepted: false };
-    setAnswers([newAnsObj, ...answers]);
-    setNewAnswer('');
-    if (editor) {
-      editor.commands.clearContent();
-    }
-  };
+  if (!question) return <Typography sx={{ mt: 10, textAlign: 'center' }}>Loading question...</Typography>;
 
   return (
     <MantineProvider withGlobalStyles withNormalizeCSS theme={{ colorScheme: darkMode ? 'dark' : 'light' }}>
@@ -110,22 +126,22 @@ export default function QuestionDetail({ currentUser = 'Total Walrus' }) {
 
           <Container maxWidth="md" sx={{ py: 4 }}>
             <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
-              <Link component={RouterLink} to="/questions" underline="hover" color="inherit">Questions</Link>
-              <Typography color="text.primary">{dummyQuestion.title}</Typography>
+              <Link component={RouterLink} to="/" underline="hover" color="inherit">Questions</Link>
+              <Typography color="text.primary">{question.title}</Typography>
             </Breadcrumbs>
 
             <Box sx={{ backgroundColor: theme.palette.background.paper, p: 3, borderRadius: 2, mb: 4 }}>
               <Typography variant={isMobile ? 'h5' : 'h4'} fontWeight={600} sx={{ mb: 1 }}>
-                {dummyQuestion.title}
+                {question.title}
               </Typography>
               <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-                {dummyQuestion.tags.map(t => (
-                  <Chip key={t} label={t} size="small" sx={{ bgcolor: '#2E2E2E', color: '#fff' }} />
+                {question.tags.map((t, i) => (
+                  <Chip key={i} label={t} size="small" sx={{ bgcolor: '#2E2E2E', color: '#fff' }} />
                 ))}
               </Stack>
-              <Box dangerouslySetInnerHTML={{ __html: dummyQuestion.description }} sx={{ mb: 2 }} />
+              <Box dangerouslySetInnerHTML={{ __html: question.description }} sx={{ mb: 2 }} />
               <Typography variant="caption" sx={{ color: theme.palette.primary.main }}>
-                {dummyQuestion.user}
+                Posted by @{question.author_username}
               </Typography>
             </Box>
 
@@ -134,8 +150,8 @@ export default function QuestionDetail({ currentUser = 'Total Walrus' }) {
               {answers.map(ans => (
                 <Box key={ans.id} sx={{ backgroundColor: theme.palette.background.paper, p: 2, borderRadius: 2 }}>
                   <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1 }}>
-                    <Avatar sx={{ width: 32, height: 32 }}>{ans.user.charAt(0)}</Avatar>
-                    <Typography sx={{ color: theme.palette.text.primary }}>{ans.user}</Typography>
+                    <Avatar sx={{ width: 32, height: 32 }}>{ans.author_username?.charAt(0) || 'U'}</Avatar>
+                    <Typography sx={{ color: theme.palette.text.primary }}>{ans.author_username}</Typography>
                     {ans.accepted && <CheckCircle color="success" fontSize="small" />}
                   </Stack>
                   <Box dangerouslySetInnerHTML={{ __html: ans.content }} sx={{ mb: 1 }} />
@@ -143,7 +159,7 @@ export default function QuestionDetail({ currentUser = 'Total Walrus' }) {
                     <IconButton size="small" onClick={() => handleVote(ans.id, +1)}><ThumbUp fontSize="small" /></IconButton>
                     <Typography variant="body2">{ans.votes}</Typography>
                     <IconButton size="small" onClick={() => handleVote(ans.id, -1)}><ThumbDown fontSize="small" /></IconButton>
-                    {currentUser === dummyQuestion.user && !ans.accepted && (
+                    {currentUser === question.author_username && !ans.accepted && (
                       <Button size="small" onClick={() => handleAccept(ans.id)}>Accept</Button>
                     )}
                   </Stack>
@@ -151,13 +167,13 @@ export default function QuestionDetail({ currentUser = 'Total Walrus' }) {
               ))}
             </Stack>
 
-            {/* Editor */}
             <Box sx={{ mt: 4 }}>
               <Typography sx={{ mb: 1 }}>Your Answer</Typography>
               <RichTextEditor
-                editor={editor}
+                value={newAnswer}
+                onChange={setNewAnswer}
                 sticky={false}
-                placeholder="Type @ to mention a user"
+                placeholder="Type your answer here..."
                 sx={{
                   '& .ProseMirror': {
                     minHeight: '150px',
@@ -171,11 +187,7 @@ export default function QuestionDetail({ currentUser = 'Total Walrus' }) {
                 }}
               />
               <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                <Button
-                  variant="contained"
-                  disabled={!newAnswer.trim()}
-                  onClick={handleSubmit}
-                >
+                <Button variant="contained" disabled={!newAnswer.trim()} onClick={handleSubmitAnswer}>
                   Submit Answer
                 </Button>
               </Box>

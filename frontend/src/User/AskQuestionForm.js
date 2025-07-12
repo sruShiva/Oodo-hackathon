@@ -1,23 +1,27 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Box, Container, Typography, TextField, Button, Chip, MenuItem, useMediaQuery,
-  CssBaseline, Switch, AppBar, Toolbar, IconButton, Grid, OutlinedInput, Select,
+  Box, Container, Typography, TextField, Button, MenuItem,
+  useMediaQuery, CssBaseline, Switch, AppBar, Toolbar,
+  IconButton, Grid, OutlinedInput, Select
 } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import MenuIcon from '@mui/icons-material/Menu';
 import { RichTextEditor } from '@mantine/rte';
-import { useParams, Link as RouterLink } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { MantineProvider } from '@mantine/core';
+import axios from 'axios';
 
 const TAG_OPTIONS = ['React', 'JWT', 'SQL', 'UI', 'API', 'Auth', 'Routing', 'Frontend'];
 
 export default function AskQuestionForm() {
   const [darkMode, setDarkMode] = useState(true);
- const isMobile = useMediaQuery('(max-width:37.5em)');
+  const isMobile = useMediaQuery('(max-width:37.5em)');
+  const navigate = useNavigate();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const theme = useMemo(() =>
     createTheme({
@@ -37,10 +41,39 @@ export default function AskQuestionForm() {
     }), [darkMode]
   );
 
-  const handleSubmit = () => {
-    const question = { title, description, tags };
-    console.log('Submitted Question:', question);
-    // Submit logic to backend or state here
+  const handleSubmit = async () => {
+    const token = localStorage.getItem('token');
+    const username = localStorage.getItem('username');
+
+    if (!token || !username) {
+      alert("You must be logged in to submit a question.");
+      return;
+    }
+
+    const payload = { title, description, tags };
+
+    try {
+      setLoading(true);
+      const response = await axios.post(
+        'http://localhost:8000/questions',
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const created = response.data;
+      alert(`Question posted successfully by @${created.author_username}`);
+      navigate(`/questions/${created.id}`);
+    } catch (err) {
+      console.error("❌ Failed to post question:", err.response?.data || err.message);
+      alert("Failed to submit question.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -55,31 +88,20 @@ export default function AskQuestionForm() {
                 Ask a Question
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-               
-
-
-
                 {!isMobile && (
-                <Button
-                    component={RouterLink}
-                    to="/"
-                    sx={{ color: theme.palette.text.primary }}
-                >
+                  <Button component={RouterLink} to="/" sx={{ color: theme.palette.text.primary }}>
                     Home
-                </Button>
+                  </Button>
                 )}
-
                 <Switch checked={darkMode} onChange={() => setDarkMode(!darkMode)} color="primary" />
-                <IconButton>
-                  <MenuIcon sx={{ color: theme.palette.text.primary }} />
-                </IconButton>
+                <IconButton><MenuIcon sx={{ color: theme.palette.text.primary }} /></IconButton>
               </Box>
             </Toolbar>
           </AppBar>
 
+          {/* Form */}
           <Container maxWidth="md" sx={{ py: 4 }}>
             <Box component="form" noValidate autoComplete="off">
-              {/* Title Field */}
               <TextField
                 label="Title"
                 placeholder="Enter a short and descriptive title"
@@ -90,21 +112,20 @@ export default function AskQuestionForm() {
                 sx={{ mb: 3 }}
               />
 
-              {/* Rich Text Editor */}
               <Typography sx={{ mb: 1, color: theme.palette.text.primary }}>Description</Typography>
-              <RichTextEditor
-                value={description}
-                onChange={setDescription}
-                sticky={false}
-                sx={{
-                  mb: 3,
-                  backgroundColor: theme.palette.background.paper,
-                  color: theme.palette.text.primary,
-                }}
-              />
+              <Box sx={{
+                '& .ProseMirror': { minHeight: '150px', padding: '12px', outline: 'none' },
+                mb: 3,
+                backgroundColor: theme.palette.background.paper,
+              }}>
+                <RichTextEditor
+                  value={description}
+                  onChange={setDescription}
+                  sticky={false}
+                  placeholder="Describe your problem in detail"
+                />
+              </Box>
 
-
-              {/* Tags */}
               <Typography sx={{ mb: 1, color: theme.palette.text.primary }}>Tags</Typography>
               <Select
                 multiple
@@ -117,21 +138,19 @@ export default function AskQuestionForm() {
                 sx={{ mb: 4 }}
               >
                 {TAG_OPTIONS.map((tag) => (
-                  <MenuItem key={tag} value={tag}>
-                    {tag}
-                  </MenuItem>
+                  <MenuItem key={tag} value={tag}>{tag}</MenuItem>
                 ))}
               </Select>
 
-              {/* Submit Button */}
               <Grid container justifyContent="flex-end">
                 <Button
                   variant="contained"
                   size="large"
                   sx={{ borderRadius: 2, px: 4, py: 1.2 }}
                   onClick={handleSubmit}
+                  disabled={loading || !title.trim() || !description.trim()}
                 >
-                  Submit Question
+                  {loading ? 'Submitting...' : 'Submit Question'}
                 </Button>
               </Grid>
             </Box>

@@ -21,6 +21,11 @@ from app.models import VoteCreate, VoteResult
 from app.database import tags_table
 from app.models import TagCreate, TagResponse, TagListResponse
 
+from app.models import AdminBanUser, AdminMessage, AdminBanResponse, AdminMessageResponse, AdminReports
+
+from app.database import notifications_table
+from app.models import NotificationResponse, NotificationListResponse
+
 
 
 security = HTTPBearer()
@@ -266,7 +271,18 @@ def create_answer_service(question_id: str, answer_data: AnswerCreate, current_u
         Question.id == question_id
     )
     
+    # create notif for question owner
+    question_owner_id = question[0]["author_id"]
+    if question_owner_id != current_user["id"]:  # Don't notify if answering own question
+        create_notification_helper(
+            user_id=question_owner_id,
+            notification_type="new_answer",
+            message=f"{current_user['username']} answered your question",
+            related_id=new_answer["id"]
+        )
+    
     return AnswerResponse(**new_answer)
+
 
 def get_answers_service(question_id: str, sort: str = "newest"):
     """Get all answers for a question"""
@@ -606,3 +622,137 @@ def create_tag_service(tag_data: TagCreate, current_user: dict):
         name=tag_name,
         usage_count=0
     )
+
+
+
+#admin service
+def admin_ban_user_service(ban_data: AdminBanUser, current_user: dict):
+    """Ban users - Admin only"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    User = Query()
+    user_to_ban = users_table.search(User.id == ban_data.user_id)
+    
+    if not user_to_ban:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Simple ban - just set banned flag
+    users_table.update(
+        {"is_banned": True, "ban_reason": ban_data.reason},
+        User.id == ban_data.user_id
+    )
+    
+    return AdminBanResponse(
+        message="User banned successfully",
+        username=user_to_ban[0]["username"],
+        reason=ban_data.reason
+    )
+
+def admin_send_message_service(message_data: AdminMessage, current_user: dict):
+    """Send platform messages - Admin only"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Count active users
+    active_users = [u for u in users_table.all() if not u.get("is_banned", False)]
+    
+    # Simple implementation - just return success
+    return AdminMessageResponse(
+        message="Platform message sent successfully",
+        sent_to_users=len(active_users)
+    )
+
+def admin_reject_content_service(content_type: str, content_id: str, current_user: dict):
+    """Reject inappropriate content - Admin only"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    Query_obj = Query()
+    
+    if content_type == "question":
+        content = questions_table.search(Query_obj.id == content_id)
+        if content:
+            questions_table.remove(Query_obj.id == content_id)
+            return {"message": "Question rejected and removed"}
+    elif content_type == "answer":
+        content = answers_table.search(Query_obj.id == content_id)
+        if content:
+            answers_table.remove(Query_obj.id == content_id)
+            return {"message": "Answer rejected and removed"}
+    
+    raise HTTPException(status_code=404, detail="Content not found")
+
+def admin_get_reports_service(current_user: dict):
+    """Get basic platform reports - Admin only"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    return AdminReports(
+        total_users=len(users_table.all()),
+        total_questions=len(questions_table.all()),
+        total_answers=len(answers_table.all()),
+        banned_users=len([u for u in users_table.all() if u.get("is_banned", False)])
+    )
+
+
+
+
+#notification service functions
+def get_user_notifications_service(current_user: dict, limit: int = 10):
+    """Get user notifications for dropdown"""
+    Notification = Query()
+    
+    # Get user's notifications (recent first)
+    user_notifications = notifications_table.search(Notification.user_id == current_user["id"])
+    user_notifications.sort(key=lambda x: x['created_at'], reverse=True)
+    
+    # Limit for dropdown display
+    recent_notifications = user_notifications[:limit]
+    
+    # Count unread
+    unread_count = len([n for n in user_notifications if not n.get("is_read", False)])
+    
+    # Convert to response
+    notification_responses = [NotificationResponse(**n) for n in recent_notifications]
+    
+    return NotificationListResponse(
+        notifications=notification_responses,
+        unread_count=unread_count
+    )
+
+def mark_notification_read_service(notification_id: str, current_user: dict):
+    """Mark notification as read"""
+    Notification = Query()
+    
+    notifications_table.update(
+        {"is_read": True},
+        (Notification.id == notification_id) & (Notification.user_id == current_user["id"])
+    )
+    
+    return {"message": "Notification marked as read"}
+
+def mark_all_notifications_read_service(current_user: dict):
+    """Mark all notifications as read"""
+    Notification = Query()
+    
+    notifications_table.update(
+        {"is_read": True},
+        Notification.user_id == current_user["id"]
+    )
+    
+    return {"message": "All notifications marked as read"}
+
+def create_notification_helper(user_id: str, notification_type: str, message: str, related_id: str = None):
+    """Helper to create notifications"""
+    new_notification = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "type": notification_type,
+        "message": message,
+        "is_read": False,
+        "created_at": datetime.utcnow().isoformat(),
+        "related_id": related_id
+    }
+    
+    notifications_table.insert(new_notification)

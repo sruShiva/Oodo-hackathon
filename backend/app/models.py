@@ -111,3 +111,41 @@ class TagResponse(BaseModel):
 class TagListResponse(BaseModel):
     tags: List[TagResponse]
     total: int
+
+
+# admin models
+class AdminBanUser(BaseModel):
+    user_id: str
+    reason: str
+
+class AdminMessage(BaseModel):
+    message: str
+    type: str = "announcement"  # announcement, maintenance, update
+
+class AdminBanResponse(BaseModel):
+    message: str
+    username: str
+    reason: str
+
+class AdminMessageResponse(BaseModel):
+    message: str
+    sent_to_users: int
+
+class AdminReports(BaseModel):
+    total_users: int
+    total_questions: int
+    total_answers: int
+    banned_users: int
+
+#notification models
+class NotificationResponse(BaseModel):
+    id: str
+    type: str  # "new_answer", "answer_comment", "mention"
+    message: str
+    is_read: bool
+    created_at: datetime
+    related_id: Optional[str] = None
+
+class NotificationListResponse(BaseModel):
+    notifications: List[NotificationResponse]
+    unread_count: int

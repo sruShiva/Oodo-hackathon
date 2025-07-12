@@ -27,6 +27,23 @@ from app.auth import vote_answer_service, remove_vote_service
 from app.models import TagCreate, TagResponse, TagListResponse
 from app.auth import get_tags_service, create_tag_service
 
+from app.models import AdminBanUser, AdminMessage, AdminBanResponse, AdminMessageResponse, AdminReports
+from app.auth import (
+    admin_ban_user_service,
+    admin_send_message_service,
+    admin_reject_content_service,
+    admin_get_reports_service
+)
+
+# Add these imports for notification routes
+from app.models import NotificationResponse, NotificationListResponse
+from app.auth import (
+    get_user_notifications_service,
+    mark_notification_read_service,
+    mark_all_notifications_read_service
+)
+
+
 router = APIRouter()
 
 # authentication routes
@@ -170,3 +187,61 @@ async def create_tag(
 ):
     """Create new tag (returns immediately, will be saved when used in question)"""
     return create_tag_service(tag, current_user)
+
+#admin routes
+@router.post("/admin/ban-user")
+async def admin_ban_user(
+    ban_request: AdminBanUser,
+    current_user: dict = Depends(get_current_user)
+):
+    """Ban users who violate platform policies"""
+    return admin_ban_user_service(ban_request, current_user)
+
+@router.post("/admin/messages")
+async def admin_send_message(
+    message: AdminMessage,
+    current_user: dict = Depends(get_current_user)
+):
+    """Send platform-wide messages"""
+    return admin_send_message_service(message, current_user)
+
+@router.delete("/admin/moderate/{content_type}/{content_id}")
+async def admin_reject_content(
+    content_type: str,
+    content_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Reject inappropriate content (removes it)"""
+    return admin_reject_content_service(content_type, content_id, current_user)
+
+@router.get("/admin/reports")
+async def admin_get_reports(
+    current_user: dict = Depends(get_current_user)
+):
+    """Download basic activity reports"""
+    return admin_get_reports_service(current_user)
+
+
+
+# notification routes
+@router.get("/notifications", response_model=NotificationListResponse)
+async def get_notifications(
+    current_user: dict = Depends(get_current_user)
+):
+    """Fetch user notifications for bell dropdown"""
+    return get_user_notifications_service(current_user)
+
+@router.put("/notifications/{notification_id}/read")
+async def mark_notification_read(
+    notification_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Mark notification as read"""
+    return mark_notification_read_service(notification_id, current_user)
+
+@router.put("/notifications/read-all")
+async def mark_all_notifications_read(
+    current_user: dict = Depends(get_current_user)
+):
+    """Mark all notifications as read"""
+    return mark_all_notifications_read_service(current_user)

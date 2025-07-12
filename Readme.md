@@ -84,3 +84,12 @@ A dynamic notification system keeps users updated:
 ---
 
 
+### Sample Images:
+
+<img width="1902" height="870" alt="image" src="https://github.com/user-attachments/assets/53075f89-eb8d-4cab-a340-1c5c01505287" />
+<img width="1901" height="897" alt="image" src="https://github.com/user-attachments/assets/a86a927f-0652-4929-80d6-13f0c614ff24" />
+<img width="1908" height="911" alt="image" src="https://github.com/user-attachments/assets/adf7d58f-00f4-4e78-bc30-21e08dea7575" />
+<img width="1896" height="905" alt="image" src="https://github.com/user-attachments/assets/eed31709-fa60-4423-96bc-9038f5896963" />
+
+
+
